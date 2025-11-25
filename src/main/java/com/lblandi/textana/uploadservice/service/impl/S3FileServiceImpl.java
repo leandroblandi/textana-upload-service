@@ -28,13 +28,22 @@ public class S3FileServiceImpl implements FileService {
 
     @Override
     public FileUploadResponse saveFile(MultipartFile file) {
+        // ensure the file is valid
         validateFile(file);
+
+        // generate a unique identifier for the file
         String uuid = UUID.randomUUID().toString().replace("-", "");
+
+        // build object metadata
         ObjectMetadata metadata = createObjectMetadata(file);
 
         try {
+            // build put object request
+            PutObjectRequest request = new PutObjectRequest(bucket, uuid, file.getInputStream(), metadata);
             log.info("Saving file '{}' with identifier '{}'", file.getOriginalFilename(), uuid);
-            s3Client.putObject(new PutObjectRequest(bucket, uuid, file.getInputStream(), metadata));
+
+            // perform operation and return the response
+            s3Client.putObject(request);
             return buildResponse(uuid, file.getOriginalFilename());
 
         } catch (IOException e) {
@@ -42,6 +51,13 @@ public class S3FileServiceImpl implements FileService {
         }
     }
 
+    /**
+     * Builds and returns a {@link FileUploadResponse} object with the specified UUID and file name.
+     *
+     * @param uuid the unique identifier for the file being uploaded
+     * @param fileName the original name of the uploaded file
+     * @return a {@link FileUploadResponse} containing the file tracking UUID and file name
+     */
     private FileUploadResponse buildResponse(String uuid, String fileName) {
         return FileUploadResponse.builder()
                 .trackingUuid(uuid)
@@ -49,6 +65,21 @@ public class S3FileServiceImpl implements FileService {
                 .build();
     }
 
+    /**
+     * Validates the given file to ensure it meets specific requirements for upload.
+     *
+     * The validation checks include:
+     * - Ensuring the file is not null or empty.
+     * - Restricting the file size to a maximum of 10 MB.
+     * - Verifying the file name ends with ".txt".
+     * - Confirming the file content type is "text/plain".
+     *
+     * If any of these checks fail, a {@link FileUploadingException} is thrown.
+     *
+     * @param file the file to be validated, represented as a {@link MultipartFile}
+     * @throws FileUploadingException if the file is null, empty, exceeds the size limit,
+     *         has an invalid extension, or has an unsupported content type.
+     */
     private void validateFile(MultipartFile file) {
 
         if (file == null || file.isEmpty()) {
@@ -71,6 +102,13 @@ public class S3FileServiceImpl implements FileService {
         }
     }
 
+    /**
+     * Creates and returns an {@link ObjectMetadata} object containing metadata information
+     * derived from the specified {@link MultipartFile}.
+     *
+     * @param file the file from which metadata such as content type and size will be extracted
+     * @return an {@link ObjectMetadata} object populated with file metadata
+     */
     private ObjectMetadata createObjectMetadata(MultipartFile file) {
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentType(file.getContentType());

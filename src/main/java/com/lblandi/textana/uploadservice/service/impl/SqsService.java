@@ -24,13 +24,18 @@ public class SqsService implements QueueService {
         log.info("Sending file identifier '{}' to SQS queue", fileIdentifier);
 
         try {
+
+            // build send message request
             SendMessageRequest request = SendMessageRequest.builder()
                     .messageBody(fileIdentifier)
                     .queueUrl(queueUrl)
                     .build();
+
+            // perform send
             sqsClient.sendMessage(request);
         } catch (Exception e) {
             log.error("Error while sending file identifier to SQS queue", e);
+            throw e;
         }
     }
 }
